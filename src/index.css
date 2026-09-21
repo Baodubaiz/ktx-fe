@@ -1,0 +1,216 @@
+* ,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --military-primary: #3f4f2f;
+  --military-primary-hover: #334025;
+  --military-primary-active: #26381f;
+  --military-bg-page: #f3f5f2;
+  --military-bg-container: #ffffff;
+  --military-bg-subtle: #f7f8f5;
+  --military-text: #1f2937;
+  --military-text-secondary: #5b6472;
+  --military-border: #d5dbcf;
+  --military-border-subtle: #e7ebe1;
+  --military-shadow-soft: 0 2px 12px rgba(31, 41, 55, 0.06);
+  --app-bg-image: url('/images/background.jpg');
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: Inter, "Segoe UI", Roboto, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--military-text);
+  background: var(--military-bg-page);
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c2caba;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9eaa94;
+}
+
+.ant-layout-content {
+  background: var(--military-bg-page);
+}
+
+.main-content-bg {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(233, 232, 232, 0.9) 0%,
+      rgba(199, 199, 199, 0.88) 40%,
+      rgba(208, 208, 207, 0.9) 100%
+    ),
+    var(--app-bg-image) !important;
+  background-position: center !important;
+  background-size: cover !important;
+  background-attachment: fixed !important;
+  transition: background-image 0.8s ease-in-out !important;
+}
+
+.main-content-overlay {
+  background: transparent;
+}
+
+.main-content-overlay .ant-card,
+.main-content-overlay .ant-table-wrapper .ant-table {
+  border-color: #d6dece;
+  box-shadow: 0 8px 18px rgba(31, 41, 55, 0.08);
+}
+
+.ant-card {
+  border-color: var(--military-border-subtle);
+  box-shadow: var(--military-shadow-soft);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 6px 18px rgba(31, 41, 55, 0.09);
+}
+
+.ant-btn {
+  font-weight: 600;
+  transition: all 0.2s ease !important;
+}
+
+.ant-btn-default {
+  border-color: var(--military-border);
+}
+
+.ant-btn-primary {
+  background: var(--military-primary);
+  border-color: var(--military-primary);
+}
+
+.ant-btn-primary:hover {
+  background: var(--military-primary-hover) !important;
+  border-color: var(--military-primary-hover) !important;
+  transform: translateY(-1px);
+}
+
+.ant-btn-primary:active {
+  background: var(--military-primary-active) !important;
+  border-color: var(--military-primary-active) !important;
+  transform: translateY(0);
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-input-affix-wrapper-focused,
+.ant-picker-focused {
+  border-color: var(--military-primary) !important;
+  box-shadow: 0 0 0 2px rgba(63, 79, 47, 0.12) !important;
+}
+
+.ant-breadcrumb {
+  font-size: 13px;
+}
+
+.ant-breadcrumb a:hover {
+  color: var(--military-primary) !important;
+}
+
+.ant-table-wrapper .ant-table {
+  border: 1px solid var(--military-border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--military-bg-subtle) !important;
+  color: var(--military-text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid var(--military-border-subtle) !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid #eef1eb !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f2f6ed !important;
+}
+
+.ant-pagination .ant-pagination-item-active {
+  border-color: var(--military-primary);
+  background: var(--military-primary);
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: #fff;
+}
+
+.ant-pagination .ant-pagination-item:hover {
+  border-color: var(--military-primary-hover);
+}
+
+.ant-pagination .ant-pagination-item:hover a,
+.ant-pagination .ant-pagination-jump-next:hover .ant-pagination-item-container .ant-pagination-item-link-icon,
+.ant-pagination .ant-pagination-jump-prev:hover .ant-pagination-item-container .ant-pagination-item-link-icon {
+  color: var(--military-primary-hover);
+}
+
+.ant-spin-dot-item {
+  background-color: var(--military-primary) !important;
+}
+
+.ant-menu-inline .ant-menu-item {
+  border-radius: 8px !important;
+  margin: 2px 8px !important;
+}
+
+.ant-menu-inline .ant-menu-item-selected {
+  color: #fff !important;
+}
+
+.qlktx-filter-panel .ant-card-head {
+  border-bottom: 1px solid var(--military-border-subtle) !important;
+  background: var(--military-bg-subtle);
+}
+
+.qlktx-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--military-text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

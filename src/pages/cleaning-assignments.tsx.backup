@@ -1,0 +1,316 @@
+import { useEffect, useState } from 'react'
+import {
+  Table, Modal, Form, Select, Button, Card,
+  Space, Popconfirm, message, Typography, DatePicker, Upload,
+} from 'antd'
+import {
+  PlusOutlined, EditOutlined, DeleteOutlined,
+  DownloadOutlined, UploadOutlined, InboxOutlined,
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import type { UploadFile } from 'antd'
+import dayjs from 'dayjs'
+import { PageHeader, PageContainer } from '@/components'
+
+import { phanCongVeSinhService } from '@/services/cleaning-assignment.service'
+import type { PhanCongVeSinh, CreatePhanCongVeSinhDto } from '@/types/cleaning-document'
+import { api } from '@/lib/axios'
+
+const { Text } = Typography
+const { Dragger } = Upload
+
+export default function PhanCongVeSinhPage() {
+  const [data, setData] = useState<PhanCongVeSinh[]>([])
+  const [loading, setLoading] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [editItem, setEditItem] = useState<PhanCongVeSinh | null>(null)
+  const [form] = Form.useForm()
+
+  // Import modal
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [uploading, setUploading] = useState(false)
+
+  // Lookup data
+  const [viTriList, setViTriList] = useState<any[]>([])
+  const [donViDoiList, setDonViDoiList] = useState<any[]>([])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const result = await phanCongVeSinhService.getAll()
+      setData(Array.isArray(result) ? result : [])
+    } catch {
+      message.error('Lỗi tải dữ liệu')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchLookups = async () => {
+    try {
+      const [viTriRes, donViRes] = await Promise.all([
+        api.get('/vi-tri'),
+        api.get('/don-vi-doi'),
+      ])
+      const unwrap = (res: any) => {
+        const d = res.data?.data ?? res.data
+        return d?.data ?? d
+      }
+      setViTriList(Array.isArray(unwrap(viTriRes)) ? unwrap(viTriRes) : [])
+      setDonViDoiList(Array.isArray(unwrap(donViRes)) ? unwrap(donViRes) : [])
+    } catch {
+      // Lookup data optional
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+    fetchLookups()
+  }, [])
+
+  const openCreate = () => {
+    setEditItem(null)
+    form.resetFields()
+    setModalOpen(true)
+  }
+
+  const openEdit = (item: PhanCongVeSinh) => {
+    setEditItem(item)
+    form.setFieldsValue({
+      vi_tri_id: item.vi_tri_id,
+      trung_doi_phu_trach: item.trung_doi_phu_trach,
+      thoi_gian: item.thoi_gian ? dayjs(item.thoi_gian) : null,
+    })
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
+    const dto: CreatePhanCongVeSinhDto = {
+      vi_tri_id: values.vi_tri_id,
+      trung_doi_phu_trach: values.trung_doi_phu_trach,
+      thoi_gian: values.thoi_gian ? values.thoi_gian.toISOString() : undefined,
+    }
+    setSubmitting(true)
+    try {
+      if (editItem) {
+        await phanCongVeSinhService.update(editItem.id, dto)
+        message.success('Cập nhật thành công')
+      } else {
+        await phanCongVeSinhService.create(dto)
+        message.success('Thêm thành công')
+      }
+      setModalOpen(false)
+      form.resetFields()
+      fetchData()
+    } catch {
+      message.error('Thao tác thất bại')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await phanCongVeSinhService.delete(id)
+      message.success('Đã xóa')
+      fetchData()
+    } catch {
+      message.error('Xóa thất bại')
+    }
+  }
+
+  // ========== EXPORT ==========
+  const handleExport = () => {
+    if (data.length === 0) {
+      message.warning('Không có dữ liệu để xuất')
+      return
+    }
+    const headers = ['STT', 'Vị trí', 'Tòa nhà', 'Trung đội phụ trách', 'Thời gian']
+    const rows = data.map((item, i) => [
+      i + 1,
+      item.viTri?.ten_vi_tri ?? '',
+      item.viTri?.toaNha?.ten_toa ?? '',
+      item.trungDoi?.ten_don_vi ?? '',
+      item.thoi_gian ? new Date(item.thoi_gian).toLocaleDateString('vi-VN') : '',
+    ])
+    const csvContent = [headers, ...rows].map((row) => row.join(',')).join('\n')
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Phan_Cong_Ve_Sinh_${new Date().toLocaleDateString('vi-VN')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    message.success('Xuất dữ liệu thành công')
+  }
+
+  // ========== IMPORT ==========
+  const handleImport = async () => {
+    if (fileList.length === 0) return
+    const file = fileList[0].originFileObj as File
+
+    try {
+      setUploading(true)
+      const formData = new FormData()
+      formData.append('file', file)
+      await api.post('/phan-cong-ve-sinh/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      message.success('Import dữ liệu thành công!')
+      setFileList([])
+      setImportModalOpen(false)
+      fetchData()
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || error.message
+      message.error('Lỗi: ' + errorMsg)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const columns: ColumnsType<PhanCongVeSinh> = [
+    { title: 'STT', width: 60, render: (_, __, i) => i + 1 },
+    {
+      title: 'Vị trí',
+      render: (_, r) => r.viTri?.ten_vi_tri ?? `ID: ${r.vi_tri_id ?? '—'}`,
+    },
+    {
+      title: 'Tòa nhà',
+      render: (_, r) => r.viTri?.toaNha?.ten_toa ?? '—',
+    },
+    {
+      title: 'Trung đội phụ trách',
+      render: (_, r) => r.trungDoi?.ten_don_vi ?? '—',
+    },
+    {
+      title: 'Thời gian',
+      render: (_, r) =>
+        r.thoi_gian ? new Date(r.thoi_gian).toLocaleDateString('vi-VN') : '—',
+    },
+    {
+      title: 'Thao tác',
+      width: 120,
+      render: (_, r) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Popconfirm title="Xóa phân công này?" onConfirm={() => handleDelete(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Quản lý phân công vệ sinh"
+        subtitle="Chi tiết phân công vệ sinh các khu vực"
+        breadcrumbs={[{ label: 'Phân công vệ sinh' }]}
+        extra={
+          <>
+            <Button icon={<DownloadOutlined />} onClick={handleExport}>Xuất báo cáo</Button>
+            <Button type="primary" icon={<UploadOutlined />} onClick={() => setImportModalOpen(true)}>Nhập dữ liệu</Button>
+          </>
+        }
+      />
+
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            Thêm mới
+          </Button>
+        </div>
+        <Table
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 10, showSizeChanger: true }}
+        />
+      </Card>
+
+      {/* ===== MODAL THÊM / SỬA ===== */}
+      <Modal
+        open={modalOpen}
+        onCancel={() => { setModalOpen(false); form.resetFields() }}
+        title={editItem ? 'Cập nhật phân công' : 'Thêm phân công vệ sinh'}
+        onOk={handleSubmit}
+        confirmLoading={submitting}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item label="Vị trí" name="vi_tri_id" rules={[{ required: true, message: 'Chọn vị trí' }]}>
+            <Select
+              placeholder="Chọn vị trí"
+              showSearch
+              optionFilterProp="label"
+              options={viTriList.map((v: any) => ({
+                value: v.id,
+                label: v.ten_vi_tri ?? `Vị trí ${v.id}`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item label="Trung đội phụ trách" name="trung_doi_phu_trach">
+            <Select
+              placeholder="Chọn trung đội"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={donViDoiList.map((d: any) => ({
+                value: d.id,
+                label: d.ten_don_vi ?? d.ma_don_vi,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item label="Thời gian" name="thoi_gian">
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* ===== MODAL IMPORT ===== */}
+      <Modal
+        open={importModalOpen}
+        onCancel={() => { setImportModalOpen(false); setFileList([]) }}
+        title="Nhập dữ liệu phân công vệ sinh"
+        width={520}
+        footer={[
+          <Button key="cancel" onClick={() => { setImportModalOpen(false); setFileList([]) }} disabled={uploading}>
+            Hủy bỏ
+          </Button>,
+          <Button
+            key="upload"
+            type="primary"
+            icon={<UploadOutlined />}
+            loading={uploading}
+            disabled={fileList.length === 0 || uploading}
+            onClick={handleImport}
+          >
+            Bắt đầu nhập
+          </Button>,
+        ]}
+      >
+        <Dragger
+          fileList={fileList}
+          beforeUpload={(file) => {
+            setFileList([{ ...file, originFileObj: file } as any])
+            return false
+          }}
+          onRemove={() => setFileList([])}
+          accept=".xlsx,.xls,.csv"
+          maxCount={1}
+          style={{ marginBottom: 16 }}
+        >
+          <p><InboxOutlined style={{ fontSize: 48, color: '#999' }} /></p>
+          <p><Text strong>Click để chọn file hoặc kéo thả vào đây</Text></p>
+          <p><Text type="secondary" style={{ fontSize: 12 }}>Hỗ trợ định dạng: .xlsx, .xls, .csv</Text></p>
+        </Dragger>
+      </Modal>
+    </PageContainer>
+  )
+}

@@ -1,0 +1,337 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(120deg, rgba(17, 24, 39, 0.58) 0%, rgba(31, 41, 55, 0.5) 40%, rgba(63, 79, 47, 0.45) 100%),
+    var(--app-bg-image) center/cover no-repeat;
+  transition: background-image 0.8s ease-in-out;
+}
+
+.mesh-gradient-orb,
+.mesh-orb-1,
+.mesh-orb-2,
+.mesh-orb-3,
+.mesh-orb-4,
+.mesh-orb-5 {
+  display: none;
+}
+
+.login-card {
+  width: 440px;
+  border-radius: 16px;
+  border: 1px solid #d5dbcf;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.96);
+  animation: landingFadeUp 0.6s ease;
+}
+
+.login-card::before {
+  display: none;
+}
+
+.login-accent-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3f4f2f 0%, #51693b 100%);
+}
+
+.login-logo-img {
+  width: 120px;
+  /* Tăng kích thước tùy ý bạn */
+  height: auto;
+  /* Đảm bảo tỉ lệ luôn chuẩn */
+  display: block;
+  /* Tránh khoảng trống thừa phía dưới ảnh */
+}
+
+.login-logo {
+  width: 76px;
+  height: 76px;
+  border-radius: 16px;
+  /* background: linear-gradient(135deg, #3f4f2f 0%, #334025 100%); */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  /* box-shadow: 0 8px 20px rgba(63, 79, 47, 0.28); */
+}
+
+.login-logo::before {
+  display: none;
+}
+
+.login-title {
+  color: #1f2937;
+  font-weight: 800;
+  margin: 0;
+}
+
+.login-input {
+  height: 46px !important;
+  border-radius: 10px !important;
+  border: 1px solid #d5dbcf !important;
+  background: #ffffff !important;
+}
+
+.login-input:hover {
+  border-color: #b8c1af !important;
+}
+
+.login-input:focus,
+.login-input-focused {
+  border-color: #3f4f2f !important;
+  box-shadow: 0 0 0 2px rgba(63, 79, 47, 0.12) !important;
+}
+
+.login-button {
+  height: 48px !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  border-radius: 10px !important;
+  border: none !important;
+  background: #3f4f2f !important;
+  box-shadow: 0 6px 14px rgba(63, 79, 47, 0.25) !important;
+}
+
+.login-button::before {
+  display: none;
+}
+
+.login-button:hover:not(:disabled) {
+  background: #334025 !important;
+}
+
+.login-button:active:not(:disabled) {
+  background: #26381f !important;
+}
+
+.login-forgot-link {
+  font-size: 13px;
+  color: #3f4f2f !important;
+}
+
+.login-forgot-link::after {
+  display: none;
+}
+
+.login-forgot-link:hover {
+  color: #334025 !important;
+}
+
+.login-error {
+  margin-bottom: 14px;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+}
+
+.landing-hero {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  background: var(--app-bg-image) center/cover no-repeat;
+  transition: background-image 0.8s ease-in-out;
+}
+
+.landing-bg-motion {
+  position: absolute;
+  inset: -4%;
+  background: inherit;
+  animation: landingZoom 20s ease-in-out infinite alternate;
+}
+
+.landing-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.68) 0%, rgba(0, 0, 0, 0.4) 38%, rgba(0, 0, 0, 0.16) 62%, rgba(0, 0, 0, 0.05) 100%);
+}
+
+.landing-spike-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* 1. Đổi kích thước: Cao hết cỡ, rộng giới hạn */
+  width: min(45vw, 900px);
+  height: 100%;
+
+  background:
+    /* Giữ nguyên họa tiết đường kẻ */
+    repeating-linear-gradient(120deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 10px),
+    /* 2. Gradient từ Trái (Đen) qua Phải (Trắng) */
+    linear-gradient(90deg, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.485) 58%, rgba(255, 255, 255, 0.064) 100%);
+
+  /* 3. Clip-path: Chuyển các răng cưa sang cạnh bên phải */
+  clip-path: polygon(0% 0%, 85% 0%,
+      80% 5%, 85% 10%, 80% 15%, 85% 20%, 80% 25%, 85% 30%,
+      80% 35%, 85% 40%, 80% 45%, 85% 50%, 80% 55%, 85% 60%,
+      80% 65%, 85% 70%, 80% 75%, 85% 80%, 80% 85%, 85% 90%,
+      80% 95%, 85% 100%, 0% 100%);
+
+  opacity: 0.95;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.landing-content {
+  position: relative;
+  z-index: 3;
+  max-width: 860px;
+  padding: 56px 24px 56px 64px;
+  animation: landingFadeUp 0.7s ease;
+}
+
+.landing-marquee-container {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-bottom: 12px;
+  position: relative;
+  /* Add a gradient fade effect on the sides so text doesn't sharply clipped */
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+
+.landing-marquee-content {
+  display: inline-block;
+  font-size: 40px; /* 38px + 2px of Title 1 */
+  font-weight: 800;
+  color: #f97316;
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: landingMarquee 15s linear infinite;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes landingMarquee {
+  0% {
+    transform: translateX(100vw);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.landing-title {
+  color: #fff !important;
+  margin: 0 !important;
+  line-height: 1.15 !important;
+  max-width: 820px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.landing-subtitle {
+  display: block;
+  margin-top: 12px;
+  max-width: 820px;
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.landing-bullets {
+  margin-top: 20px;
+}
+
+.landing-bullet {
+  color: rgba(255, 255, 255, 0.93) !important;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landing-bullet .anticon {
+  color: #c4f2cc;
+}
+
+.landing-cta {
+  min-width: 152px;
+  height: 44px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.landing-hotline {
+  min-width: 170px;
+  height: 44px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #fff;
+  background: #f97316;
+  border-color: #f97316;
+}
+
+.landing-hotline:hover,
+.landing-hotline:focus {
+  color: #fff !important;
+  background: #ea580c !important;
+  border-color: #ea580c !important;
+}
+
+.landing-note {
+  display: block;
+  margin-top: 16px;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+@keyframes landingFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landingZoom {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.05);
+  }
+}
+
+@media (max-width: 768px) {
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .landing-content {
+    padding: 40px 18px 44px 20px;
+    max-width: 100%;
+  }
+
+  .landing-title {
+    font-size: 40px !important;
+  }
+
+  .landing-marquee-content {
+    font-size: 42px; /* 40px + 2px */
+  }
+
+  .landing-spike-overlay {
+    width: 100%;
+    height: 360px;
+  }
+}

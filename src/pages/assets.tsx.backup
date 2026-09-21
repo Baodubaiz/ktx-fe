@@ -1,0 +1,755 @@
+import { useEffect, useState } from 'react'
+import {
+  Tabs, Table, Modal, Form, Input, InputNumber, Select, Button, Card, Tag,
+  Space, Popconfirm, message, Row, Col, Descriptions,
+} from 'antd'
+import {
+  PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
+  ArrowLeftOutlined, DownloadOutlined, WarningOutlined,
+  FormOutlined, HistoryOutlined,
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import { useLocation } from 'react-router-dom'
+import { PageHeader, PageContainer } from '@/components'
+
+import { taiSanPhongService, lichSuSuaChuaService, boiThuongService } from '@/services/asset.service'
+import { baoCaoHuHongService } from '@/services/damage-report.service'
+import { roomService } from '@/services/room.service'
+import { studentService } from '@/services/student.service'
+import { api } from '@/lib/axios'
+import type {
+  TaiSanPhong,
+  LichSuSuaChuaTaiSan,
+  QuanLyBoiThuongTaiSan,
+} from '@/types/asset'
+import type { BaoCaoHuHong } from '@/types/damage-report'
+import type { Room } from '@/types/room'
+import type { Student } from '@/types/student'
+
+const { TextArea } = Input
+
+const unwrapLookup = (res: any) => {
+  const d = res.data?.data ?? res.data
+  return d?.data ?? d
+}
+
+/* ================================================================
+   TAB 1 – TÀI SẢN PHÒNG
+   ================================================================ */
+function TabTaiSanPhong() {
+  const location = useLocation()
+  const [data, setData] = useState<TaiSanPhong[]>([])
+  const [loading, setLoading] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [editItem, setEditItem] = useState<TaiSanPhong | null>(null)
+  const [selectedItem, setSelectedItem] = useState<TaiSanPhong | null>(null)
+  const [detailSubTab, setDetailSubTab] = useState<string>('bao-hu')
+  const [form] = Form.useForm()
+
+  const [filterSearch, setFilterSearch] = useState('')
+  const [filterHuHong, setFilterHuHong] = useState('ALL')
+  const [lichSuData, setLichSuData] = useState<LichSuSuaChuaTaiSan[]>([])
+
+  // Lookup data
+  const [roomList, setRoomList] = useState<Room[]>([])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try { setData(await taiSanPhongService.getAll()) }
+    catch { message.error('Lỗi tải dữ liệu') }
+    finally { setLoading(false) }
+  }
+
+  const fetchLookups = async () => {
+    try {
+      const rooms = await roomService.getAll()
+      setRoomList(Array.isArray(rooms) ? rooms : [])
+    } catch { /* lookup optional */ }
+  }
+
+  useEffect(() => { fetchData(); fetchLookups() }, [])
+
+  const fetchLichSu = async () => {
+    try { setLichSuData(await lichSuSuaChuaService.getAll()) }
+    catch { message.error('Lỗi tải lịch sử sửa chữa') }
+  }
+
+  const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true) }
+
+  // Auto-open add modal when navigated from dashboard Quick Actions
+  useEffect(() => {
+    if (location.state?.openAdd) {
+      openCreate()
+      window.history.replaceState({}, '')
+    }
+  }, [location.state])
+
+  const openEdit = (item: TaiSanPhong) => {
+    setEditItem(item)
+    form.setFieldsValue({
+      phong_id: item.phong_id, so_luong: item.so_luong,
+      so_luong_tot: item.so_luong_tot, so_luong_hu: item.so_luong_hu,
+      ghi_chu: item.ghi_chu ?? '',
+    })
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
+    setSubmitting(true)
+    try {
+      if (editItem) { await taiSanPhongService.update(editItem.id, values); message.success('Cập nhật thành công') }
+      else { await taiSanPhongService.create(values); message.success('Thêm thành công') }
+      setModalOpen(false); form.resetFields(); fetchData()
+    } catch { message.error('Thao tác thất bại') }
+    finally { setSubmitting(false) }
+  }
+
+  const handleDelete = async (id: number) => {
+    try { await taiSanPhongService.delete(id); message.success('Đã xóa'); fetchData() }
+    catch { message.error('Xóa thất bại') }
+  }
+
+  const openDetail = (item: TaiSanPhong) => {
+    setSelectedItem(item); setDetailSubTab('bao-hu'); fetchLichSu()
+  }
+
+  const filteredData = data.filter((item) => {
+    if (filterSearch && !(item.phong?.ma_phong ?? '').toLowerCase().includes(filterSearch.toLowerCase())) return false
+    if (filterHuHong === 'CO' && item.so_luong_hu === 0) return false
+    if (filterHuHong === 'KHONG' && item.so_luong_hu > 0) return false
+    return true
+  })
+
+  const filterPanel = (
+    <Card title="Bộ lọc" style={{ width: 256, flexShrink: 0 }} size="small">
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Phòng</div>
+          <Input placeholder="Tìm theo tên phòng..." allowClear value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Có hư hỏng</div>
+          <Select style={{ width: '100%' }} value={filterHuHong} onChange={setFilterHuHong} allowClear
+            options={[{ value: 'ALL', label: 'Tất cả' }, { value: 'CO', label: 'Có' }, { value: 'KHONG', label: 'Không' }]} />
+        </div>
+        <Button block onClick={() => { setFilterSearch(''); setFilterHuHong('ALL') }}>Đặt lại bộ lọc</Button>
+      </Space>
+    </Card>
+  )
+
+  if (selectedItem) {
+    return (
+      <div style={{ display: 'flex', gap: 24 }}>
+        {filterPanel}
+        <div style={{ flex: 1 }}>
+          <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => setSelectedItem(null)} style={{ padding: 0, marginBottom: 16 }}>Quay lại</Button>
+          <Space style={{ marginBottom: 16 }}>
+            <Button type={detailSubTab === 'bao-hu' ? 'primary' : 'default'} icon={<WarningOutlined />} onClick={() => setDetailSubTab('bao-hu')}>Báo hư</Button>
+            <Button type={detailSubTab === 'cap-nhat' ? 'primary' : 'default'} icon={<FormOutlined />} onClick={() => setDetailSubTab('cap-nhat')}>Cập nhật số lượng</Button>
+            <Button type={detailSubTab === 'lich-su' ? 'primary' : 'default'} icon={<HistoryOutlined />} onClick={() => setDetailSubTab('lich-su')}>Lịch sử sửa chữa</Button>
+          </Space>
+          <Card style={{ marginBottom: 16 }}>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="Phòng">{selectedItem.phong?.ma_phong ?? `ID: ${selectedItem.phong_id}`}</Descriptions.Item>
+              <Descriptions.Item label="Tổng số">{selectedItem.so_luong}</Descriptions.Item>
+              <Descriptions.Item label="Đang sử dụng tốt">{selectedItem.so_luong_tot}</Descriptions.Item>
+              <Descriptions.Item label="Đang hư">{selectedItem.so_luong_hu}</Descriptions.Item>
+              {selectedItem.ghi_chu && <Descriptions.Item label="Ghi chú" span={2}>{selectedItem.ghi_chu}</Descriptions.Item>}
+            </Descriptions>
+          </Card>
+          {detailSubTab === 'bao-hu' && (
+            <Card title="Báo hư tài sản">
+              <Form layout="vertical" style={{ maxWidth: 400 }}>
+                <Form.Item label="Số lượng hư"><InputNumber min={1} defaultValue={1} style={{ width: '100%' }} /></Form.Item>
+                <Form.Item label="Mô tả hư hỏng"><TextArea placeholder="Mô tả chi tiết tình trạng hư hỏng..." rows={3} /></Form.Item>
+                <Form.Item label="Nguyên nhân"><TextArea placeholder="Nguyên nhân gây hư hỏng..." rows={3} /></Form.Item>
+                <Button type="primary">Gửi báo hư</Button>
+              </Form>
+            </Card>
+          )}
+          {detailSubTab === 'cap-nhat' && (
+            <Card title="Cập nhật số lượng tài sản">
+              <Form layout="vertical" style={{ maxWidth: 500 }}>
+                <Row gutter={16}>
+                  <Col span={12}><Form.Item label="Tổng số"><InputNumber defaultValue={selectedItem.so_luong} style={{ width: '100%' }} /></Form.Item></Col>
+                  <Col span={12}><Form.Item label="Số lượng tốt"><InputNumber defaultValue={selectedItem.so_luong_tot} style={{ width: '100%' }} /></Form.Item></Col>
+                  <Col span={12}><Form.Item label="Số lượng hư"><InputNumber defaultValue={selectedItem.so_luong_hu} style={{ width: '100%' }} /></Form.Item></Col>
+                  <Col span={12}><Form.Item label="Ghi chú"><Input placeholder="Ghi chú..." defaultValue={selectedItem.ghi_chu ?? ''} /></Form.Item></Col>
+                </Row>
+                <Button type="primary">Cập nhật</Button>
+              </Form>
+            </Card>
+          )}
+          {detailSubTab === 'lich-su' && (
+            <Card styles={{ body: { padding: 0 } }}>
+              <Table size="small" rowKey="id" pagination={false}
+                dataSource={lichSuData.filter(h => h.tai_san_phong_id === selectedItem.id)}
+                locale={{ emptyText: 'Không có lịch sử sửa chữa' }}
+                columns={[
+                  { title: 'STT', width: 60, align: 'center', render: (_, __, i) => i + 1 },
+                  { title: 'Ngày phát hiện', align: 'center', render: (_, r) => r.ngay_phat_hien ? new Date(r.ngay_phat_hien).toLocaleDateString('vi-VN') : '' },
+                  { title: 'Mô tả', dataIndex: 'mo_ta_hu_hong', align: 'center', ellipsis: true, render: (v) => v ?? 'Hư hỏng cần sửa chữa' },
+                  { title: 'Trạng thái', align: 'center', render: (_, r) => <Tag color={r.trang_thai === 'DA_SUA' ? 'green' : 'red'}>{r.trang_thai === 'DA_SUA' ? 'Đã sửa' : 'Chưa sửa'}</Tag> },
+                  { title: 'Chi phí', align: 'center', render: (_, r) => r.chi_phi_sua ? r.chi_phi_sua.toLocaleString('vi-VN') + ' đ' : '—' },
+                ]}
+              />
+            </Card>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const columns: ColumnsType<TaiSanPhong> = [
+    { title: 'STT', width: 60, align: 'center', render: (_, __, i) => i + 1 },
+    { title: 'Phòng', align: 'center', render: (_, r) => r.phong?.ma_phong ?? `ID: ${r.phong_id}` },
+    { title: 'Tổng', dataIndex: 'so_luong', align: 'center' },
+    { title: 'Tốt', dataIndex: 'so_luong_tot', align: 'center' },
+    { title: 'Hư', dataIndex: 'so_luong_hu', align: 'center', render: (v) => v > 0 ? <Tag color="red">{v}</Tag> : v },
+    { title: 'Ghi chú', dataIndex: 'ghi_chu', align: 'center', ellipsis: true },
+    {
+      title: 'Thao tác', align: 'center', width: 120,
+      render: (_, record) => (
+        <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)} />
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+          <Popconfirm title="Xác nhận xóa tài sản phòng này?" onConfirm={() => handleDelete(record.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <div style={{ display: 'flex', gap: 24 }}>
+      {filterPanel}
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 16, fontWeight: 500 }}>Danh sách tài sản phòng</span>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm mới</Button>
+        </div>
+        <Table size="middle" rowKey="id" loading={loading} dataSource={filteredData} columns={columns}
+          locale={{ emptyText: 'Không có dữ liệu' }} pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (t) => `${t} tài sản` }} />
+        <Modal title={editItem ? 'Cập nhật tài sản phòng' : 'Thêm tài sản phòng'} open={modalOpen}
+          onCancel={() => { setModalOpen(false); form.resetFields() }} onOk={handleSubmit}
+          confirmLoading={submitting} okButtonProps={{ disabled: submitting }} okText={editItem ? 'Cập nhật' : 'Thêm'} cancelText="Hủy" destroyOnClose>
+          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            <Form.Item name="phong_id" label="Phòng" rules={[{ required: true, message: 'Chọn phòng' }]}>
+              <Select
+                showSearch
+                placeholder="Tìm và chọn phòng..."
+                optionFilterProp="label"
+                options={roomList.map(r => ({
+                  value: r.id,
+                  label: r.ma_phong + (r.tang?.toaNha?.ten_toa ? ` – ${r.tang.toaNha.ten_toa}` : ''),
+                }))}
+              />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={8}><Form.Item name="so_luong" label="Số lượng" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="so_luong_tot" label="SL tốt" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="so_luong_hu" label="SL hư" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            </Row>
+            <Form.Item name="ghi_chu" label="Ghi chú"><TextArea rows={2} /></Form.Item>
+          </Form>
+        </Modal>
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   TAB 2 – HƯ HỎNG - SỬA CHỮA
+   ================================================================ */
+function TabHuHongSuaChua() {
+  const [data, setData] = useState<LichSuSuaChuaTaiSan[]>([])
+  const [loading, setLoading] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [editItem, setEditItem] = useState<LichSuSuaChuaTaiSan | null>(null)
+  const [form] = Form.useForm()
+  const [filterTrangThai, setFilterTrangThai] = useState('ALL')
+  const [filterSearch, setFilterSearch] = useState('')
+
+  // Lookup data
+  const [taiSanPhongList, setTaiSanPhongList] = useState<TaiSanPhong[]>([])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try { setData(await lichSuSuaChuaService.getAll()) }
+    catch { message.error('Lỗi tải dữ liệu') }
+    finally { setLoading(false) }
+  }
+
+  const fetchLookups = async () => {
+    try {
+      const tsp = await taiSanPhongService.getAll()
+      setTaiSanPhongList(Array.isArray(tsp) ? tsp : [])
+    } catch { /* lookup optional */ }
+  }
+
+  useEffect(() => { fetchData(); fetchLookups() }, [])
+
+  const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true) }
+  const openEdit = (item: LichSuSuaChuaTaiSan) => {
+    setEditItem(item)
+    form.setFieldsValue({
+      tai_san_phong_id: item.tai_san_phong_id, ngay_phat_hien: item.ngay_phat_hien?.slice(0, 10) ?? '',
+      so_luong_hu: item.so_luong_hu, mo_ta_hu_hong: item.mo_ta_hu_hong ?? '',
+      nguyen_nhan: item.nguyen_nhan ?? '', trang_thai: item.trang_thai,
+      ngay_sua: item.ngay_sua?.slice(0, 10) ?? '', chi_phi_sua: item.chi_phi_sua ?? 0,
+    })
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
+    setSubmitting(true)
+    try {
+      if (editItem) { await lichSuSuaChuaService.update(editItem.id, values); message.success('Cập nhật thành công') }
+      else { await lichSuSuaChuaService.create(values); message.success('Thêm thành công') }
+      setModalOpen(false); form.resetFields(); fetchData()
+    } catch { message.error('Thao tác thất bại') }
+    finally { setSubmitting(false) }
+  }
+
+  const handleDelete = async (id: number) => {
+    try { await lichSuSuaChuaService.delete(id); message.success('Đã xóa'); fetchData() }
+    catch { message.error('Xóa thất bại') }
+  }
+
+  const filteredData = data.filter((item) => {
+    if (filterTrangThai !== 'ALL' && item.trang_thai !== filterTrangThai) return false
+    if (filterSearch && !(item.taiSanPhong?.phong?.ma_phong ?? '').toLowerCase().includes(filterSearch.toLowerCase())
+      && !(item.mo_ta_hu_hong ?? '').toLowerCase().includes(filterSearch.toLowerCase())) return false
+    return true
+  })
+
+  const columns: ColumnsType<LichSuSuaChuaTaiSan> = [
+    { title: 'STT', width: 60, align: 'center', render: (_, __, i) => i + 1 },
+    { title: 'Phòng', align: 'center', render: (_, r) => r.taiSanPhong?.phong?.ma_phong ?? `ID: ${r.tai_san_phong_id}` },
+    { title: 'Ngày phát hiện', align: 'center', render: (_, r) => r.ngay_phat_hien ? new Date(r.ngay_phat_hien).toLocaleDateString('vi-VN') : '' },
+    { title: 'SL hư', dataIndex: 'so_luong_hu', align: 'center', width: 80 },
+    { title: 'Mô tả', dataIndex: 'mo_ta_hu_hong', align: 'center', ellipsis: true },
+    { title: 'Trạng thái', align: 'center', render: (_, r) => <Tag color={r.trang_thai === 'DA_SUA' ? 'green' : 'red'}>{r.trang_thai === 'DA_SUA' ? 'Đã sửa' : 'Chưa sửa'}</Tag> },
+    { title: 'Chi phí', align: 'center', render: (_, r) => r.chi_phi_sua ? r.chi_phi_sua.toLocaleString('vi-VN') + ' đ' : '—' },
+    {
+      title: 'Thao tác', align: 'center', width: 100,
+      render: (_, r) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Popconfirm title="Xác nhận xóa?" onConfirm={() => handleDelete(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <div style={{ display: 'flex', gap: 24 }}>
+      <Card title="Bộ lọc" style={{ width: 256, flexShrink: 0 }} size="small">
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Tìm kiếm</div>
+            <Input placeholder="Phòng, mô tả..." allowClear value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Trạng thái</div>
+            <Select style={{ width: '100%' }} value={filterTrangThai} onChange={setFilterTrangThai} allowClear
+              options={[{ value: 'ALL', label: 'Tất cả' }, { value: 'CHUA_SUA', label: 'Chưa sửa' }, { value: 'DA_SUA', label: 'Đã sửa' }]} />
+          </div>
+          <Button block onClick={() => { setFilterSearch(''); setFilterTrangThai('ALL') }}>Đặt lại bộ lọc</Button>
+        </Space>
+      </Card>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 16, fontWeight: 500 }}>Lịch sử hư hỏng - sửa chữa</span>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm mới</Button>
+        </div>
+        <Table size="middle" rowKey="id" loading={loading} dataSource={filteredData} columns={columns}
+          locale={{ emptyText: 'Không có dữ liệu' }} pagination={{ pageSize: 10, showSizeChanger: true }} />
+        <Modal title={`${editItem ? 'Cập nhật' : 'Thêm'} hư hỏng - sửa chữa`} open={modalOpen} width={640}
+          onCancel={() => { setModalOpen(false); form.resetFields() }} onOk={handleSubmit}
+          confirmLoading={submitting} okButtonProps={{ disabled: submitting }} okText={editItem ? 'Cập nhật' : 'Thêm'} cancelText="Hủy" destroyOnClose>
+          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            <Form.Item name="tai_san_phong_id" label="Tài sản phòng" rules={[{ required: true, message: 'Chọn tài sản phòng' }]}>
+              <Select
+                showSearch
+                placeholder="Tìm và chọn tài sản phòng..."
+                optionFilterProp="label"
+                options={taiSanPhongList.map(ts => ({
+                  value: ts.id,
+                  label: `${ts.phong?.ma_phong ?? 'Phòng #' + ts.phong_id} (SL: ${ts.so_luong})`,
+                }))}
+              />
+            </Form.Item>
+            <Row gutter={12}>
+              <Col span={12}><Form.Item name="ngay_phat_hien" label="Ngày phát hiện"><Input type="date" /></Form.Item></Col>
+              <Col span={12}><Form.Item name="so_luong_hu" label="Số lượng hư" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            </Row>
+            <Form.Item name="mo_ta_hu_hong" label="Mô tả hư hỏng"><TextArea rows={2} /></Form.Item>
+            <Form.Item name="nguyen_nhan" label="Nguyên nhân"><TextArea rows={2} /></Form.Item>
+            <Row gutter={12}>
+              <Col span={8}><Form.Item name="trang_thai" label="Trạng thái" initialValue="CHUA_SUA"><Select options={[{ value: 'CHUA_SUA', label: 'Chưa sửa' }, { value: 'DA_SUA', label: 'Đã sửa' }]} /></Form.Item></Col>
+              <Col span={8}><Form.Item name="ngay_sua" label="Ngày sửa"><Input type="date" /></Form.Item></Col>
+              <Col span={8}><Form.Item name="chi_phi_sua" label="Chi phí sửa"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            </Row>
+          </Form>
+        </Modal>
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   TAB 3 – BỒI THƯỜNG TÀI SẢN
+   ================================================================ */
+function TabBoiThuong() {
+  const [data, setData] = useState<QuanLyBoiThuongTaiSan[]>([])
+  const [loading, setLoading] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [editItem, setEditItem] = useState<QuanLyBoiThuongTaiSan | null>(null)
+  const [form] = Form.useForm()
+  const [filterHocVien, setFilterHocVien] = useState('')
+  const [filterPhong, setFilterPhong] = useState('')
+  const [filterTrangThai, setFilterTrangThai] = useState('ALL')
+
+  // Lookup data
+  const [studentList, setStudentList] = useState<Student[]>([])
+  const [lichSuSuaChuaList, setLichSuSuaChuaList] = useState<LichSuSuaChuaTaiSan[]>([])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try { setData(await boiThuongService.getAll()) }
+    catch { message.error('Lỗi tải dữ liệu') }
+    finally { setLoading(false) }
+  }
+
+  const fetchLookups = async () => {
+    try {
+      const [students, lichSu] = await Promise.all([
+        studentService.getAll(),
+        lichSuSuaChuaService.getAll(),
+      ])
+      setStudentList(Array.isArray(students) ? students : [])
+      setLichSuSuaChuaList(Array.isArray(lichSu) ? lichSu : [])
+    } catch { /* lookup optional */ }
+  }
+
+  useEffect(() => { fetchData(); fetchLookups() }, [])
+
+  const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true) }
+  const openEdit = (item: QuanLyBoiThuongTaiSan) => {
+    setEditItem(item)
+    form.setFieldsValue({
+      hoc_vien_id: item.hoc_vien_id, tai_san_hu_hong: item.tai_san_hu_hong,
+      so_tien: item.so_tien, hinh_thuc: item.hinh_thuc,
+      ngay_boi_thuong: item.ngay_boi_thuong?.slice(0, 10) ?? '', ghi_chu: item.ghi_chu ?? '',
+    })
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
+    setSubmitting(true)
+    try {
+      if (editItem) { await boiThuongService.update(editItem.id, values); message.success('Cập nhật thành công') }
+      else { await boiThuongService.create(values); message.success('Thêm thành công') }
+      setModalOpen(false); form.resetFields(); fetchData()
+    } catch { message.error('Thao tác thất bại') }
+    finally { setSubmitting(false) }
+  }
+
+  const getTrangThai = (item: QuanLyBoiThuongTaiSan) => item.ngay_boi_thuong ? 'DA_BOI_THUONG' : 'CHUA_NOP'
+
+  const filteredData = data.filter((item) => {
+    if (filterTrangThai !== 'ALL' && getTrangThai(item) !== filterTrangThai) return false
+    if (filterHocVien && !(item.hocVien?.ho_ten ?? '').toLowerCase().includes(filterHocVien.toLowerCase())) return false
+    const phongName = item.taiSan?.taiSanPhong?.phong?.ma_phong ?? ''
+    if (filterPhong && !phongName.toLowerCase().includes(filterPhong.toLowerCase())) return false
+    return true
+  })
+
+  const columns: ColumnsType<QuanLyBoiThuongTaiSan> = [
+    { title: 'STT', width: 60, align: 'center', render: (_, __, i) => i + 1 },
+    { title: 'Học viên', align: 'center', render: (_, r) => r.hocVien?.ho_ten ?? `ID: ${r.hoc_vien_id}` },
+    { title: 'Phòng', align: 'center', render: (_, r) => r.taiSan?.taiSanPhong?.phong?.ma_phong ?? '—' },
+    { title: 'Tài sản', align: 'center', render: (_, r) => r.taiSan?.mo_ta_hu_hong ?? r.taiSan?.taiSanPhong?.ghi_chu ?? `ID: ${r.tai_san_hu_hong}` },
+    { title: 'Số tiền', align: 'center', render: (_, r) => `${r.so_tien?.toLocaleString('vi-VN')} đ` },
+    { title: 'Trạng thái', align: 'center', render: (_, r) => <Tag color={getTrangThai(r) === 'DA_BOI_THUONG' ? 'green' : 'red'}>{getTrangThai(r) === 'DA_BOI_THUONG' ? 'Đã bồi thường' : 'Chưa nộp'}</Tag> },
+    { title: 'Thao tác', align: 'center', width: 80, render: (_, r) => <Button size="small" icon={<EyeOutlined />} onClick={() => openEdit(r)} /> },
+  ]
+
+  return (
+    <div style={{ display: 'flex', gap: 24 }}>
+      <Card title="Bộ lọc" style={{ width: 256, flexShrink: 0 }} size="small">
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Học viên</div>
+            <Input placeholder="Tìm theo tên..." allowClear value={filterHocVien} onChange={(e) => setFilterHocVien(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Phòng</div>
+            <Input placeholder="Tìm theo phòng..." allowClear value={filterPhong} onChange={(e) => setFilterPhong(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Trạng thái</div>
+            <Select style={{ width: '100%' }} value={filterTrangThai} onChange={setFilterTrangThai} allowClear
+              options={[{ value: 'ALL', label: 'Tất cả' }, { value: 'CHUA_NOP', label: 'Chưa nộp' }, { value: 'DA_BOI_THUONG', label: 'Đã bồi thường' }]} />
+          </div>
+          <Button block onClick={() => { setFilterHocVien(''); setFilterPhong(''); setFilterTrangThai('ALL') }}>Đặt lại bộ lọc</Button>
+        </Space>
+      </Card>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 16, fontWeight: 500 }}>Quản lý bồi thường tài sản</span>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tạo bồi thường</Button>
+        </div>
+        <Table size="middle" rowKey="id" loading={loading} dataSource={filteredData} columns={columns}
+          locale={{ emptyText: 'Không có dữ liệu' }} pagination={{ pageSize: 10, showSizeChanger: true }} />
+        <Modal title={`${editItem ? 'Cập nhật' : 'Thêm'} bồi thường tài sản`} open={modalOpen} width={640}
+          onCancel={() => { setModalOpen(false); form.resetFields() }} onOk={handleSubmit}
+          confirmLoading={submitting} okButtonProps={{ disabled: submitting }} okText={editItem ? 'Cập nhật' : 'Thêm'} cancelText="Hủy" destroyOnClose>
+          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="hoc_vien_id" label="Học viên" rules={[{ required: true, message: 'Chọn học viên' }]}>
+                  <Select
+                    showSearch
+                    placeholder="Tìm và chọn học viên..."
+                    optionFilterProp="label"
+                    options={studentList.map(s => ({
+                      value: s.id,
+                      label: `${s.ma_hoc_vien} – ${s.ho_ten ?? 'Chưa có tên'}`,
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="tai_san_hu_hong" label="Tài sản hư hỏng" rules={[{ required: true, message: 'Chọn tài sản hư hỏng' }]}>
+                  <Select
+                    showSearch
+                    placeholder="Chọn tài sản hư hỏng..."
+                    optionFilterProp="label"
+                    options={lichSuSuaChuaList.map(ls => ({
+                      value: ls.id,
+                      label: `${ls.taiSanPhong?.phong?.ma_phong ?? 'Phòng #' + ls.tai_san_phong_id} – ${ls.mo_ta_hu_hong ?? 'Hư hỏng #' + ls.id}`,
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={12}>
+              <Col span={12}><Form.Item name="so_tien" label="Số tiền" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+              <Col span={12}><Form.Item name="hinh_thuc" label="Hình thức" initialValue="TIEN_MAT"><Select options={[{ value: 'TIEN_MAT', label: 'Tiền mặt' }, { value: 'CHUYEN_KHOAN', label: 'Chuyển khoản' }]} /></Form.Item></Col>
+            </Row>
+            <Form.Item name="ngay_boi_thuong" label="Ngày bồi thường"><Input type="date" /></Form.Item>
+            <Form.Item name="ghi_chu" label="Ghi chú"><TextArea rows={2} /></Form.Item>
+          </Form>
+        </Modal>
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   TAB 4 – BÁO CÁO HƯ HỎNG KTX
+   ================================================================ */
+function TabBienBanBanGiao() {
+  const [data, setData] = useState<BaoCaoHuHong[]>([])
+  const [loading, setLoading] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [editItem, setEditItem] = useState<BaoCaoHuHong | null>(null)
+  const [form] = Form.useForm()
+  const [filterPhong, setFilterPhong] = useState('')
+  const [filterTrungDoi, setFilterTrungDoi] = useState('')
+
+  // Lookup data
+  const [roomList, setRoomList] = useState<Room[]>([])
+  const [donViDoiList, setDonViDoiList] = useState<any[]>([])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try { setData(await baoCaoHuHongService.getAll()) }
+    catch { message.error('Lỗi tải dữ liệu') }
+    finally { setLoading(false) }
+  }
+
+  const fetchLookups = async () => {
+    try {
+      const [rooms, donViRes] = await Promise.all([
+        roomService.getAll(),
+        api.get('/don-vi-doi'),
+      ])
+      setRoomList(Array.isArray(rooms) ? rooms : [])
+      const donVi = unwrapLookup(donViRes)
+      setDonViDoiList(Array.isArray(donVi) ? donVi : [])
+    } catch { /* lookup optional */ }
+  }
+
+  useEffect(() => { fetchData(); fetchLookups() }, [])
+
+  const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true) }
+  const openEdit = (item: BaoCaoHuHong) => {
+    setEditItem(item)
+    form.setFieldsValue({
+      phong_id: item.phong_id ?? 0, trung_doi_id: item.trung_doi_id ?? undefined,
+      noi_dung: item.noi_dung ?? '', ngay_bao: item.ngay_bao?.slice(0, 10) ?? '',
+      so_lan_bao: item.so_lan_bao ?? 1,
+    })
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
+    setSubmitting(true)
+    try {
+      if (editItem) { await baoCaoHuHongService.update(editItem.id, values); message.success('Cập nhật thành công') }
+      else { await baoCaoHuHongService.create(values); message.success('Thêm thành công') }
+      setModalOpen(false); form.resetFields(); fetchData()
+    } catch { message.error('Thao tác thất bại') }
+    finally { setSubmitting(false) }
+  }
+
+  const handleDelete = async (id: number) => {
+    try { await baoCaoHuHongService.delete(id); message.success('Đã xóa'); fetchData() }
+    catch { message.error('Xóa thất bại') }
+  }
+
+  const handleExport = () => {
+    const headers = ['STT', 'Phòng', 'Trung đội', 'Nội dung', 'Ngày báo', 'Số lần báo']
+    const rows = filteredData.map((item, idx) => [
+      idx + 1, item.phong?.ma_phong ?? '', item.trungDoi?.ten_don_vi ?? '',
+      item.noi_dung ?? '', item.ngay_bao ? new Date(item.ngay_bao).toLocaleDateString('vi-VN') : '',
+      item.so_lan_bao ?? '',
+    ])
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `bao-cao-hu-hong-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click(); URL.revokeObjectURL(url)
+  }
+
+  const filteredData = data.filter((item) => {
+    if (filterPhong && !(item.phong?.ma_phong ?? '').toLowerCase().includes(filterPhong.toLowerCase())) return false
+    if (filterTrungDoi && !(item.trungDoi?.ten_don_vi ?? '').toLowerCase().includes(filterTrungDoi.toLowerCase())) return false
+    return true
+  })
+
+  const columns: ColumnsType<BaoCaoHuHong> = [
+    { title: 'STT', width: 60, align: 'center', render: (_, __, i) => i + 1 },
+    { title: 'Phòng', align: 'center', render: (_, r) => r.phong?.ma_phong ?? `ID: ${r.phong_id}` },
+    { title: 'Trung đội', align: 'center', render: (_, r) => r.trungDoi?.ten_don_vi ?? (r.trung_doi_id ? `ID: ${r.trung_doi_id}` : '—') },
+    { title: 'Nội dung', dataIndex: 'noi_dung', align: 'center', ellipsis: true },
+    { title: 'Ngày báo', align: 'center', render: (_, r) => r.ngay_bao ? new Date(r.ngay_bao).toLocaleDateString('vi-VN') : '' },
+    { title: 'Số lần báo', dataIndex: 'so_lan_bao', align: 'center', width: 100 },
+    {
+      title: 'Thao tác', align: 'center', width: 100,
+      render: (_, r) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          <Popconfirm title="Xác nhận xóa?" onConfirm={() => handleDelete(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <div style={{ display: 'flex', gap: 24 }}>
+      <Card title="Bộ lọc" style={{ width: 256, flexShrink: 0 }} size="small">
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Phòng</div>
+            <Input placeholder="Tìm theo phòng..." allowClear value={filterPhong} onChange={(e) => setFilterPhong(e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Trung đội</div>
+            <Input placeholder="Tìm trung đội..." allowClear value={filterTrungDoi} onChange={(e) => setFilterTrungDoi(e.target.value)} />
+          </div>
+          <Button block onClick={() => { setFilterPhong(''); setFilterTrungDoi('') }}>Đặt lại bộ lọc</Button>
+        </Space>
+      </Card>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 16, fontWeight: 500 }}>Báo cáo hư hỏng KTX</span>
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={handleExport}>Xuất báo cáo</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm mới</Button>
+          </Space>
+        </div>
+        <Table size="middle" rowKey="id" loading={loading} dataSource={filteredData} columns={columns}
+          locale={{ emptyText: 'Không có dữ liệu' }} pagination={{ pageSize: 10, showSizeChanger: true }} />
+        <Modal title={`${editItem ? 'Cập nhật' : 'Thêm'} báo cáo hư hỏng`} open={modalOpen} width={640}
+          onCancel={() => { setModalOpen(false); form.resetFields() }} onOk={handleSubmit}
+          confirmLoading={submitting} okButtonProps={{ disabled: submitting }} okText={editItem ? 'Cập nhật' : 'Thêm'} cancelText="Hủy" destroyOnClose>
+          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Form.Item name="phong_id" label="Phòng" rules={[{ required: true, message: 'Chọn phòng' }]}>
+                  <Select
+                    showSearch
+                    placeholder="Tìm và chọn phòng..."
+                    optionFilterProp="label"
+                    options={roomList.map(r => ({
+                      value: r.id,
+                      label: r.ma_phong + (r.tang?.toaNha?.ten_toa ? ` – ${r.tang.toaNha.ten_toa}` : ''),
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="trung_doi_id" label="Trung đội">
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="Chọn trung đội..."
+                    optionFilterProp="label"
+                    options={donViDoiList.map((d: any) => ({
+                      value: d.id,
+                      label: d.ten_don_vi ?? d.ma_don_vi,
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="noi_dung" label="Nội dung" rules={[{ required: true }]}><TextArea rows={3} /></Form.Item>
+            <Row gutter={12}>
+              <Col span={12}><Form.Item name="ngay_bao" label="Ngày báo"><Input type="date" /></Form.Item></Col>
+              <Col span={12}><Form.Item name="so_lan_bao" label="Số lần báo" initialValue={1}><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
+            </Row>
+          </Form>
+        </Modal>
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================
+   TRANG CHÍNH – QUẢN LÝ TÀI SẢN
+   ================================================================ */
+export default function TaiSan() {
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Quản lý tài sản - Cơ sở vật chất"
+        subtitle="Quản lý tài sản phòng, hư hỏng, sửa chữa và bồi thường"
+        breadcrumbs={[{ label: 'Tài sản' }]}
+      />
+      <Tabs items={[
+        { key: 'tai-san-phong', label: 'Tài sản phòng', children: <TabTaiSanPhong /> },
+        { key: 'hu-hong-sua-chua', label: 'Hư hỏng - sửa chữa', children: <TabHuHongSuaChua /> },
+        { key: 'boi-thuong', label: 'Bồi thường tài sản', children: <TabBoiThuong /> },
+        { key: 'bien-ban', label: 'Biên bản bàn giao TS', children: <TabBienBanBanGiao /> },
+      ]} />
+    </PageContainer>
+  )
+}

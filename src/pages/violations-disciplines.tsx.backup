@@ -1,0 +1,384 @@
+import { useEffect, useState } from 'react'
+import { Tabs, Table, Modal, Form, Input, Select, Button, Card, Tag, Space, Popconfirm, message } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import { useLocation } from 'react-router-dom'
+import { PageHeader, PageContainer } from '@/components'
+
+import { viPhamService, kyLuatService } from '@/services/violation.service'
+import { studentService } from '@/services/student.service'
+import { api } from '@/lib/axios'
+import type {
+    ViPham, CreateViPhamDto,
+    KyLuat, CreateKyLuatDto,
+    HinhThucKyLuat,
+} from '@/types/violation'
+import type { Student } from '@/types/student'
+
+const { TextArea } = Input
+
+const unwrapLookup = (res: any) => {
+    const d = res.data?.data ?? res.data
+    return d?.data ?? d
+}
+
+/* ================================================================
+   TAB 1 – VI PHẠM
+   ================================================================ */
+function TabViPham() {
+    const location = useLocation()
+    const [data, setData] = useState<ViPham[]>([])
+    const [loading, setLoading] = useState(false)
+    const [modalOpen, setModalOpen] = useState(false)
+    const [submitting, setSubmitting] = useState(false)
+    const [editItem, setEditItem] = useState<ViPham | null>(null)
+    const [filterSearch, setFilterSearch] = useState('')
+    const [filterTrangThai, setFilterTrangThai] = useState('ALL')
+    const [filterNgayTu, setFilterNgayTu] = useState('')
+    const [filterNgayDen, setFilterNgayDen] = useState('')
+    const [form] = Form.useForm()
+
+    // Lookup data
+    const [studentList, setStudentList] = useState<Student[]>([])
+    const [userList, setUserList] = useState<any[]>([])
+
+    const fetchData = async () => {
+        setLoading(true)
+        try { setData(await viPhamService.getAll()) }
+        catch { message.error('Lỗi tải dữ liệu vi phạm') }
+        finally { setLoading(false) }
+    }
+
+    const fetchLookups = async () => {
+        try {
+            const [students, usersRes] = await Promise.all([
+                studentService.getAll(),
+                api.get('/nguoi-dung'),
+            ])
+            setStudentList(Array.isArray(students) ? students : [])
+            const users = unwrapLookup(usersRes)
+            setUserList(Array.isArray(users) ? users : [])
+        } catch { /* lookup optional */ }
+    }
+
+    useEffect(() => { fetchData(); fetchLookups() }, [])
+
+    const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true) }
+
+    // Auto-open add modal when navigated from dashboard Quick Actions
+    useEffect(() => {
+        if (location.state?.openAdd) {
+            openCreate()
+            window.history.replaceState({}, '')
+        }
+    }, [location.state])
+
+    const openEdit = (item: ViPham) => {
+        setEditItem(item)
+        form.setFieldsValue({
+            hoc_vien_id: item.hoc_vien_id, noi_dung: item.noi_dung ?? '',
+            ngay_vi_pham: item.ngay_vi_pham?.slice(0, 10), hinh_thuc: item.hinh_thuc ?? '',
+            nguoi_lap: item.nguoi_lap, trang_thai: item.trang_thai, ghi_chu: item.ghi_chu ?? '',
+        })
+        setModalOpen(true)
+    }
+
+    const handleSubmit = async () => {
+        const values = await form.validateFields() as CreateViPhamDto
+        setSubmitting(true)
+        try {
+            if (editItem) await viPhamService.update(editItem.id, values)
+            else await viPhamService.create(values)
+            message.success(editItem ? 'Cập nhật thành công' : 'Thêm thành công')
+            setModalOpen(false); form.resetFields(); fetchData()
+        } catch { message.error('Thao tác thất bại') }
+        finally { setSubmitting(false) }
+    }
+
+    const handleDelete = async (id: number) => {
+        try { await viPhamService.delete(id); message.success('Đã xóa'); fetchData() }
+        catch { message.error('Xóa thất bại') }
+    }
+
+    const filteredData = data.filter((item) => {
+        const matchTrangThai = filterTrangThai === 'ALL' || item.trang_thai === filterTrangThai
+        const matchSearch = !filterSearch ||
+            item.hocVien?.ho_ten?.toLowerCase().includes(filterSearch.toLowerCase()) ||
+            item.noi_dung?.toLowerCase().includes(filterSearch.toLowerCase())
+        if (filterNgayTu && item.ngay_vi_pham && item.ngay_vi_pham < filterNgayTu) return false
+        if (filterNgayDen && item.ngay_vi_pham && item.ngay_vi_pham > filterNgayDen + 'T23:59:59') return false
+        return matchTrangThai && matchSearch
+    })
+
+    const columns: ColumnsType<ViPham> = [
+        { title: 'STT', width: 60, render: (_, __, i) => i + 1 },
+        { title: 'Học viên', render: (_, r) => r.hocVien?.ho_ten ?? `ID: ${r.hoc_vien_id}` },
+        { title: 'Nội dung', dataIndex: 'noi_dung', ellipsis: true },
+        { title: 'Ngày vi phạm', render: (_, r) => r.ngay_vi_pham ? new Date(r.ngay_vi_pham).toLocaleDateString('vi-VN') : '' },
+        { title: 'Hình thức', dataIndex: 'hinh_thuc' },
+        { title: 'Trạng thái', render: (_, r) => <Tag color={r.trang_thai === 'DA_XU_LY' ? 'green' : 'red'}>{r.trang_thai === 'DA_XU_LY' ? 'Đã xử lý' : 'Chưa xử lý'}</Tag> },
+        {
+            title: 'Thao tác', align: 'center', width: 100,
+            render: (_, r) => (
+                <Space>
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+                    <Popconfirm title="Xác nhận xóa vi phạm này?" onConfirm={() => handleDelete(r.id)}>
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                </Space>
+            ),
+        },
+    ]
+
+    return (
+        <div style={{ display: 'flex', gap: 24 }}>
+            <Card title="Bộ lọc" style={{ width: 256, flexShrink: 0 }} size="small">
+                <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <div>
+                        <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Học viên</div>
+                        <Input placeholder="Tìm theo tên..." allowClear value={filterSearch} onChange={e => setFilterSearch(e.target.value)} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Ngày vi phạm</div>
+                        <Input type="date" style={{ marginBottom: 4 }} value={filterNgayTu} onChange={e => setFilterNgayTu(e.target.value)} placeholder="Từ ngày" />
+                        <Input type="date" value={filterNgayDen} onChange={e => setFilterNgayDen(e.target.value)} placeholder="Đến ngày" />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Trạng thái xử lý</div>
+                        <Select style={{ width: '100%' }} value={filterTrangThai} onChange={setFilterTrangThai} allowClear
+                            options={[{ value: 'ALL', label: 'Tất cả' }, { value: 'CHUA_XU_LY', label: 'Chưa xử lý' }, { value: 'DA_XU_LY', label: 'Đã xử lý' }]} />
+                    </div>
+                    <Button block onClick={() => { setFilterSearch(''); setFilterTrangThai('ALL'); setFilterNgayTu(''); setFilterNgayDen('') }}>Đặt lại bộ lọc</Button>
+                </Space>
+            </Card>
+            <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, fontSize: 16 }}>Danh sách vi phạm</h3>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm mới</Button>
+                </div>
+                <Table size="middle" rowKey="id" loading={loading} dataSource={filteredData} columns={columns}
+                    locale={{ emptyText: 'Không có dữ liệu' }} pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `${t} vi phạm` }} />
+                <Modal title={`${editItem ? 'Cập nhật' : 'Thêm'} vi phạm`} open={modalOpen} width={640}
+                    onCancel={() => setModalOpen(false)} onOk={handleSubmit} confirmLoading={submitting}
+                    okButtonProps={{ disabled: submitting }}
+                    okText={editItem ? 'Cập nhật' : 'Thêm'} cancelText="Hủy">
+                    <Form form={form} layout="vertical">
+                        <Form.Item name="hoc_vien_id" label="Học viên" rules={[{ required: true, message: 'Chọn học viên' }]}>
+                            <Select
+                                showSearch
+                                placeholder="Tìm và chọn học viên..."
+                                optionFilterProp="label"
+                                options={studentList.map(s => ({
+                                    value: s.id,
+                                    label: `${s.ma_hoc_vien} – ${s.ho_ten ?? 'Chưa có tên'}`,
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item name="noi_dung" label="Nội dung"><TextArea /></Form.Item>
+                        <Form.Item name="ngay_vi_pham" label="Ngày vi phạm"><Input type="date" /></Form.Item>
+                        <Form.Item name="hinh_thuc" label="Hình thức"><Input /></Form.Item>
+                        <Form.Item name="nguoi_lap" label="Người lập">
+                            <Select
+                                showSearch
+                                allowClear
+                                placeholder="Chọn người lập..."
+                                optionFilterProp="label"
+                                options={userList.map((u: any) => ({
+                                    value: u.id,
+                                    label: u.hoTen ?? u.username ?? `User #${u.id}`,
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item name="trang_thai" label="Trạng thái" initialValue="CHUA_XU_LY">
+                            <Select options={[{ value: 'CHUA_XU_LY', label: 'Chưa xử lý' }, { value: 'DA_XU_LY', label: 'Đã xử lý' }]} />
+                        </Form.Item>
+                        <Form.Item name="ghi_chu" label="Ghi chú"><TextArea /></Form.Item>
+                    </Form>
+                </Modal>
+            </div>
+        </div>
+    )
+}
+
+/* ================================================================
+   TAB 2 – KỶ LUẬT
+   ================================================================ */
+function TabKyLuat() {
+    const [data, setData] = useState<KyLuat[]>([])
+    const [loading, setLoading] = useState(false)
+    const [modalOpen, setModalOpen] = useState(false)
+    const [submitting, setSubmitting] = useState(false)
+    const [editItem, setEditItem] = useState<KyLuat | null>(null)
+    const [filterHinhThuc, setFilterHinhThuc] = useState('ALL')
+    const [filterSoQD, setFilterSoQD] = useState('')
+    const [filterNgayTu, setFilterNgayTu] = useState('')
+    const [filterNgayDen, setFilterNgayDen] = useState('')
+    const [form] = Form.useForm()
+
+    // Lookup data
+    const [viPhamList, setViPhamList] = useState<ViPham[]>([])
+    const [hinhThucKLList, setHinhThucKLList] = useState<HinhThucKyLuat[]>([])
+
+    const fetchData = async () => {
+        setLoading(true)
+        try { setData(await kyLuatService.getAll()) }
+        catch { message.error('Lỗi tải dữ liệu kỷ luật') }
+        finally { setLoading(false) }
+    }
+
+    const fetchLookups = async () => {
+        try {
+            const [viPhams, hinhThucRes] = await Promise.all([
+                viPhamService.getAll(),
+                api.get('/hinh-thuc-ky-luat'),
+            ])
+            setViPhamList(Array.isArray(viPhams) ? viPhams : [])
+            const htList = unwrapLookup(hinhThucRes)
+            setHinhThucKLList(Array.isArray(htList) ? htList : [])
+        } catch { /* lookup optional */ }
+    }
+
+    useEffect(() => { fetchData(); fetchLookups() }, [])
+
+    const openCreate = () => { setEditItem(null); form.resetFields(); setModalOpen(true) }
+    const openEdit = (item: KyLuat) => {
+        setEditItem(item)
+        form.setFieldsValue({
+            hinh_thuc: item.hinh_thuc, vi_pham_id: item.vi_pham_id,
+            so_quyet_dinh: item.so_quyet_dinh ?? '', ngay_quyet_dinh: item.ngay_quyet_dinh?.slice(0, 10),
+        })
+        setModalOpen(true)
+    }
+
+    const handleSubmit = async () => {
+        const values = await form.validateFields() as CreateKyLuatDto
+        setSubmitting(true)
+        try {
+            if (editItem) await kyLuatService.update(editItem.id, values)
+            else await kyLuatService.create(values)
+            message.success(editItem ? 'Cập nhật thành công' : 'Thêm thành công')
+            setModalOpen(false); form.resetFields(); fetchData()
+        } catch { message.error('Thao tác thất bại') }
+        finally { setSubmitting(false) }
+    }
+
+    const handleDelete = async (id: number) => {
+        try { await kyLuatService.delete(id); message.success('Đã xóa'); fetchData() }
+        catch { message.error('Xóa thất bại') }
+    }
+
+    const filteredData = data.filter((item) => {
+        if (filterSoQD && !(item.so_quyet_dinh ?? '').toLowerCase().includes(filterSoQD.toLowerCase())) return false
+        if (filterHinhThuc !== 'ALL' && (item.hinhThucKyLuat?.ten_hinh_thuc_ky_luat ?? '') !== filterHinhThuc) return false
+        if (filterNgayTu && item.ngay_quyet_dinh && item.ngay_quyet_dinh < filterNgayTu) return false
+        if (filterNgayDen && item.ngay_quyet_dinh && item.ngay_quyet_dinh > filterNgayDen + 'T23:59:59') return false
+        return true
+    })
+
+    const columns: ColumnsType<KyLuat> = [
+        { title: 'STT', width: 60, render: (_, __, i) => i + 1 },
+        { title: 'Học viên (vi phạm)', render: (_, r) => r.viPham?.hocVien?.ho_ten ?? `VP ID: ${r.vi_pham_id}` },
+        { title: 'Hình thức kỷ luật', render: (_, r) => r.hinhThucKyLuat?.ten_hinh_thuc_ky_luat ?? `ID: ${r.hinh_thuc}` },
+        { title: 'Mức độ', render: (_, r) => <Tag>{r.hinhThucKyLuat?.muc_do ?? '—'}</Tag> },
+        { title: 'Số quyết định', dataIndex: 'so_quyet_dinh' },
+        { title: 'Ngày quyết định', render: (_, r) => r.ngay_quyet_dinh ? new Date(r.ngay_quyet_dinh).toLocaleDateString('vi-VN') : '' },
+        {
+            title: 'Thao tác', align: 'center', width: 100,
+            render: (_, r) => (
+                <Space>
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+                    <Popconfirm title="Xác nhận xóa kỷ luật này?" onConfirm={() => handleDelete(r.id)}>
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                </Space>
+            ),
+        },
+    ]
+
+    return (
+        <div style={{ display: 'flex', gap: 24 }}>
+            <Card title="Bộ lọc" style={{ width: 256, flexShrink: 0 }} size="small">
+                <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <div>
+                        <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Hình thức kỷ luật</div>
+                        <Select style={{ width: '100%' }} value={filterHinhThuc} onChange={setFilterHinhThuc} allowClear
+                            options={[
+                                { value: 'ALL', label: 'Tất cả' },
+                                { value: 'Cảnh cáo toàn trường', label: 'Cảnh cáo toàn trường' },
+                                { value: 'Khiển trách', label: 'Khiển trách' },
+                                { value: 'Cảnh cáo', label: 'Cảnh cáo' },
+                            ]} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Số quyết định</div>
+                        <Input placeholder="Tìm số QĐ..." allowClear value={filterSoQD} onChange={e => setFilterSoQD(e.target.value)} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: 11, marginBottom: 4, color: '#999', fontWeight: 600 }}>Ngày quyết định</div>
+                        <Input type="date" style={{ marginBottom: 4 }} value={filterNgayTu} onChange={e => setFilterNgayTu(e.target.value)} placeholder="Từ ngày" />
+                        <Input type="date" value={filterNgayDen} onChange={e => setFilterNgayDen(e.target.value)} placeholder="Đến ngày" />
+                    </div>
+                    <Button block onClick={() => { setFilterHinhThuc('ALL'); setFilterSoQD(''); setFilterNgayTu(''); setFilterNgayDen('') }}>Đặt lại bộ lọc</Button>
+                </Space>
+            </Card>
+            <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, fontSize: 16 }}>Danh sách kỷ luật</h3>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Thêm mới</Button>
+                </div>
+                <Table size="middle" rowKey="id" loading={loading} dataSource={filteredData} columns={columns}
+                    locale={{ emptyText: 'Không có dữ liệu' }} pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `${t} kỷ luật` }} />
+                <Modal title={`${editItem ? 'Cập nhật' : 'Thêm'} kỷ luật`} open={modalOpen} width={640}
+                    onCancel={() => setModalOpen(false)} onOk={handleSubmit} confirmLoading={submitting}
+                    okButtonProps={{ disabled: submitting }}
+                    okText={editItem ? 'Cập nhật' : 'Thêm'} cancelText="Hủy">
+                    <Form form={form} layout="vertical">
+                        <Form.Item name="vi_pham_id" label="Vi phạm" rules={[{ required: true, message: 'Chọn vi phạm' }]}>
+                            <Select
+                                showSearch
+                                placeholder="Tìm và chọn vi phạm..."
+                                optionFilterProp="label"
+                                options={viPhamList.map(vp => ({
+                                    value: vp.id,
+                                    label: `${vp.hocVien?.ho_ten ?? 'HV #' + vp.hoc_vien_id} – ${vp.noi_dung ?? 'Không có nội dung'}`,
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item name="hinh_thuc" label="Hình thức kỷ luật" rules={[{ required: true, message: 'Chọn hình thức kỷ luật' }]}>
+                            <Select
+                                showSearch
+                                placeholder="Chọn hình thức kỷ luật..."
+                                optionFilterProp="label"
+                                options={hinhThucKLList.map(ht => ({
+                                    value: ht.id,
+                                    label: `${ht.ten_hinh_thuc_ky_luat} (${ht.muc_do})`,
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item name="so_quyet_dinh" label="Số quyết định"><Input /></Form.Item>
+                        <Form.Item name="ngay_quyet_dinh" label="Ngày quyết định"><Input type="date" /></Form.Item>
+                    </Form>
+                </Modal>
+            </div>
+        </div>
+    )
+}
+
+/* ================================================================
+   TRANG CHÍNH – VI PHẠM - KỶ LUẬT
+   ================================================================ */
+export default function ViPhamKyLuat() {
+    return (
+        <PageContainer>
+            <PageHeader
+                title="Quản lý vi phạm - Kỷ luật"
+                subtitle="Theo dõi vi phạm và xử lý kỷ luật học viên"
+                breadcrumbs={[{ label: 'Vi phạm - Kỷ luật' }]}
+            />
+            <Tabs items={[
+                { key: 'vi-pham', label: 'Vi phạm', children: <TabViPham /> },
+                { key: 'ky-luat', label: 'Kỷ luật', children: <TabKyLuat /> },
+            ]} />
+        </PageContainer>
+    )
+}

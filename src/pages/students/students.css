@@ -1,0 +1,363 @@
+/* === SMOOTH ANIMATIONS & TRANSITIONS === */
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide In From Left */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide In From Right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Scale Up Animation */
+@keyframes scaleUp {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Shimmer Loading Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* === UTILITY CLASSES === */
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.4s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s ease-out;
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.3s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth Transitions */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+.transition-colors {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.transition-transform {
+  transition: transform 0.3s ease;
+}
+
+/* Hover Effects */
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+.hover-shadow:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* === DARK MODE SUPPORT === */
+
+:root {
+  /* Light Mode Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #fafafa;
+  --text-primary: #262626;
+  --text-secondary: #595959;
+  --text-tertiary: #8c8c8c;
+  --border-color: #f0f0f0;
+  --border-strong: #d9d9d9;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] {
+  /* Dark Mode Colors */
+  --bg-primary: #1f1f1f;
+  --bg-secondary: #141414;
+  --bg-tertiary: #2a2a2a;
+  --text-primary: #e8e8e8;
+  --text-secondary: #a8a8a8;
+  --text-tertiary: #6e6e6e;
+  --border-color: #303030;
+  --border-strong: #434343;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Apply CSS Variables to Components */
+.themed-card {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.themed-bg-secondary {
+  background: var(--bg-secondary);
+}
+
+.themed-text-secondary {
+  color: var(--text-secondary);
+}
+
+/* === RESPONSIVE UTILITIES === */
+
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-hidden {
+    display: none !important;
+  }
+}
+
+/* === LOADING SKELETON === */
+
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e8e8e8 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+[data-theme='dark'] .skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    #2a2a2a 25%,
+    #353535 50%,
+    #2a2a2a 75%
+  );
+}
+
+/* === PROFESSIONAL CARD STYLES === */
+
+.professional-card {
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.professional-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .professional-card {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+/* === SMOOTH SCROLL === */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* === FOCUS STYLES === */
+
+.focus-visible:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* === BADGE STYLES === */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.status-badge.success {
+  background: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.warning {
+  background: #fffbe6;
+  color: #faad14;
+  border: 1px solid #ffe58f;
+}
+
+.status-badge.error {
+  background: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+.status-badge.info {
+  background: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+}
+
+/* Dark mode badge adjustments */
+[data-theme='dark'] .status-badge.success {
+  background: rgba(82, 196, 26, 0.15);
+}
+
+[data-theme='dark'] .status-badge.warning {
+  background: rgba(250, 173, 20, 0.15);
+}
+
+[data-theme='dark'] .status-badge.error {
+  background: rgba(255, 77, 79, 0.15);
+}
+
+[data-theme='dark'] .status-badge.info {
+  background: rgba(24, 144, 255, 0.15);
+}
+
+/* === HIERARCHY TREE CARD HOVER EFFECTS === */
+
+/* Base transition for all hierarchy cards */
+.ant-card.ant-card-hoverable {
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.22s ease,
+              border-color 0.22s ease !important;
+  will-change: transform;
+}
+
+/* Lift + shadow on hover */
+.ant-card.ant-card-hoverable:hover {
+  transform: translateY(-6px) scale(1.015);
+  box-shadow: 0 12px 28px rgba(63, 79, 47, 0.14), 0 4px 8px rgba(0,0,0,0.06) !important;
+  border-color: #8aab6a !important;
+  z-index: 1;
+}
+
+/* Icon inside hierarchy card — slight scale */
+.ant-card.ant-card-hoverable:hover .anticon {
+  transform: scale(1.12);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Badge / count pill pop */
+.ant-card.ant-card-hoverable:hover .ant-statistic-content-value {
+  transition: color 0.2s ease;
+  text-shadow: 0 2px 8px rgba(63,79,47,0.18);
+}
+
+/* Room cards with zero students — subtler hover */
+.ant-card.ant-card-hoverable:hover .ant-statistic-content-value-int[data-value="0"] {
+  text-shadow: none;
+}
+
+/* Active / click feedback */
+.ant-card.ant-card-hoverable:active {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: 0 4px 12px rgba(63, 79, 47, 0.12) !important;
+  transition-duration: 0.08s;
+}
+
+/* School card (full-width card) — gentler lift */
+.ant-row > .ant-col:only-child .ant-card.ant-card-hoverable:hover {
+  transform: translateY(-4px) scale(1.008);
+}
+
